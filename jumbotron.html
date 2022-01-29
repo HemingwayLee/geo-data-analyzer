@@ -16,6 +16,7 @@
 	<script src="./markerCluster/leaflet.markercluster-src.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+  <script src="js/jquery.csv.min.js"></script>
   <style>
     .container-fluid {
       padding: 0px;
@@ -57,7 +58,7 @@
     <div class="navbar-header">
       <div class="col-md-4 input-group">
         <div class="input-group-btn">
-          <input id="upload-json" type="file" class="btn btn-default"/>
+          <input id="upload-file" type="file" class="btn btn-default"/>
         </div>
       </div>
       <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
@@ -92,6 +93,20 @@
 </div>
 
 <script>
+  function csv2json(csv) {
+    var result = [];
+    var headers=csv[0];
+    for (var i=1; i<csv.length; i++){
+      var obj = {};
+      for (var j=0; j < headers.length; j++){
+        obj[headers[j]] = csv[i][j];
+      }
+
+      result.push(obj);
+    }
+    return result; 
+  }
+
   function Fly2Marker(btn) {
     console.log($(btn).next().text());
     console.log($(btn).next().next().text());
@@ -106,45 +121,23 @@
   }
 
   function drawItems(arr) {
-    if (arr.length == 0) {
-      return;
-    }
+    header = arr.shift();
 
-    var options = {
-      valueNames: Object.keys(arr[0]),
-      item: `
-        <div class="job-box d-md-flex align-items-center justify-content-between mb-30">
-          <div class="job-left my-4 d-md-flex align-items-center flex-wrap">
-            <div class="img-holder mr-md-4 mb-md-0 mb-4 mx-auto mx-md-0 d-md-none d-lg-flex">@</div>
-            <div class="job-content">
-              <h5 class="text-center text-md-left zipcode"></h5>
-              <ul class="d-md-flex flex-wrap text-capitalize ff-open-sans">
-                <li class="mr-md-12 address">
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div class="job-right my-4 flex-shrink-0">
-            <button onclick="Fly2Marker(this);" class="btn d-block w-100 d-sm-inline-block btn-light">Fly to</button>
-            <span class="lat"></span><span class="lng"></span>
-          </div>
-        </div>`
-    };
-
-    var values = arr;
-
-    // TODO: update it
-    var hackerList = new List('hacker-list', options, values);
+    mygrid.updateConfig({
+      columns: header,
+      data: arr
+    }).forceRender();
   }
 
   function placeMarkers(arr) {
     var sumLat = 0.0;
     var sumLng = 0.0;
     for (var i = 0; i < arr.length; i++) {
-      sumLat += arr[i].lat;
-      sumLng += arr[i].lng;
+      console.log(arr[i]);
+      sumLat += parseFloat(arr[i].lat);
+      sumLng += parseFloat(arr[i].lng);
 
-      var marker = L.marker(new L.LatLng(arr[i].lat, arr[i].lng), { title: arr[i].address });
+      var marker = L.marker(new L.LatLng(parseFloat(arr[i].lat), parseFloat(arr[i].lng)), { title: arr[i].address });
       marker.bindPopup(arr[i].address);
       markers.addLayer(marker);
     }
@@ -157,20 +150,31 @@
     });
   }
   
-  function handleData(data) {
+  function handleJsonData(data) {
     const arr = JSON.parse(data);
-    console.log(arr);
-
-    $("#total").text(arr.length);
+    
+    // TODO: here...
     placeMarkers(arr);
-    drawItems(arr);
+    // drawItems(arr);
+  }
+
+  function handleCsvData(data) {
+    csv = $.csv.toArrays(data);
+    placeMarkers(csv2json(csv));
+    drawItems(csv);
   }
 
   async function ReadFile(file) {
     return await file.text()
   }
 
-  function handleJsonFiles(e) {  
+  function handleUploadedFile(e) { 
+    var fileExt = e.target.files[0].name.split('.').pop();
+    if (fileExt != "csv" && fileExt != "json" ) {
+      console.log("invalid type");
+      return;
+    }
+    
     const selectedFile = e.target.files[0];
     const promise = new Promise(resolve => {
       const fileContent = ReadFile(selectedFile);
@@ -178,11 +182,15 @@
     });
 
     promise.then(fileContent => {
-      handleData(fileContent);
+      if (fileExt == "json") {
+        handleJsonData(fileContent);
+      } else {
+        handleCsvData(fileContent);
+      }
     });
   }
 
-  document.getElementById('upload-json').addEventListener('change', handleJsonFiles);
+  document.getElementById('upload-file').addEventListener('change', handleUploadedFile);
 
   var tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 18
@@ -193,16 +201,11 @@
 
   var markers = L.markerClusterGroup();
 
-  new gridjs.Grid({
-    columns: ['Name', 'Email', 'Phone Number'],
+  var mygrid = new gridjs.Grid({
+    columns: [],
     search: true,
     sort: true,
-    data: [
-      ['John', 'john@example.com', '(353) 01 222 3333'],
-      ['Mark', 'mark@gmail.com',   '(01) 22 888 4444'],
-      ['Eoin', 'eo3n@yahoo.com',   '(05) 10 878 5554'],
-      ['Nisen', 'nis900@gmail.com',   '313 333 1923']
-    ],
+    data: [],
     pagination: {
       limit: 2
     },
