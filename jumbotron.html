@@ -107,6 +107,21 @@
     return result; 
   }
 
+  function json2csv(myjson) {
+    var fields = Object.keys(myjson[0])
+    var replacer = function(key, value) { return value === null ? '' : value } 
+    var csv = myjson.map(function(row){
+      return fields.map(function(fieldName){
+        return JSON.stringify(row[fieldName], replacer)
+      }).join(',')
+    })
+    csv.unshift(fields.join(','))
+    csv = csv.join('\n');
+    // console.log(csv);
+    
+    return csv;
+  }
+
   function Fly2Marker(btn) {
     console.log($(btn).next().text());
     console.log($(btn).next().next().text());
@@ -153,9 +168,8 @@
   function handleJsonData(data) {
     const arr = JSON.parse(data);
     
-    // TODO: here...
     placeMarkers(arr);
-    // drawItems(arr);
+    drawItems($.csv.toArrays(json2csv(arr)));
   }
 
   function handleCsvData(data) {
