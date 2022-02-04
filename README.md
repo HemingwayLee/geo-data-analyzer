@@ -1,5 +1,8 @@
 # geo-data-analyzer
 
 # TODO
-* Add click event for both map and entry
+* Click event for both map and entry
+* Add, delete, edit
+* location suggestion
+* price prediction
  
