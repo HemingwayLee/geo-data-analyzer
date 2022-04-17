@@ -41,7 +41,29 @@
       background-color: #f1f1f1;
       height: 100%;
     }
-    
+
+    .autocomplete-items {
+      position: absolute;
+      border: 1px solid #d4d4d4;
+      border-bottom: none;
+      border-top: none;
+      z-index: 99;
+      top: 100%;
+      left: 0;
+      right: 0;
+    }
+
+    .autocomplete-items div {
+      padding: 10px;
+      cursor: pointer;
+      background-color: #fff;
+      border-bottom: 1px solid #d4d4d4;
+    }
+
+    .autocomplete-items div:hover {
+      background-color: #e9e9e9;
+    }
+
     @media screen and (max-width: 767px) {
       .sidenav {
         height: auto;
@@ -56,10 +78,17 @@
 <nav class="navbar navbar-inverse">
   <div class="container-fluid">
     <div class="navbar-header">
-      <div class="col-md-4 input-group">
-        <div class="input-group-btn">
-          <input id="upload-file" type="file" class="btn btn-default"/>
-        </div>
+      <div class="input-group">
+        <span class="input-group-addon">
+          <span class="glyphicon glyphicon-home">
+          </span>
+        </span>
+        <input id="upload-home" type="file" class="btn btn-default"/>
+        <span class="input-group-addon">
+          <span class="glyphicon glyphicon-shopping-cart">
+          </span>
+        </span>
+        <input id="upload-shop" type="file" class="btn btn-default"/>
       </div>
       <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
         <span class="icon-bar"></span>
@@ -80,12 +109,40 @@
 </nav>
 
 <div class="container-fluid">
-  <div id="map">
+  <div class="row content">
+    <div class="col-sm-12 text-left">
+      <div id="map">
+      </div>
+    </div>
   </div>
 </div>
   
 <div class="container-fluid text-center">  
   <div class="row content">
+    <div class="col-sm-6 text-left">
+      <div class="input-group">
+        <div class="autocomplete">
+          <input name="homename" id="homename" type="text" class="form-control" placeholder="Home Name">
+        </div>
+        <div class="input-group-btn">
+          <button class="btn btn-default">
+            <i class="glyphicon glyphicon-home"></i> From
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 text-left">
+      <div class="input-group">
+        <div class="autocomplete">
+          <input name="targetname" id="targetname" type="text" class="form-control" placeholder="Target Name">
+        </div>
+        <div class="input-group-btn">
+          <button id="doSearch" class="btn btn-default">
+            <i class="glyphicon glyphicon-shopping-cart"></i> To
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="col-sm-12 text-left">
       <div id="wrapper"></div>
     </div>
@@ -93,6 +150,77 @@
 </div>
 
 <script>
+  let gAllLocations = [];
+
+  function doAutoComplete(inp, arr) {
+    var currentFocus;
+    inp.addEventListener("input", function(e) {
+      var a, b, i, val = this.value;
+      closeAllLists();
+      if (!val) { return false;}
+      currentFocus = -1;
+      a = document.createElement("div");
+      a.setAttribute("id", this.id + "autocomplete-list");
+      a.setAttribute("class", "autocomplete-items");
+      this.parentNode.appendChild(a);
+      for (i = 0; i < arr.length; i++) {
+        if (arr[i].substr(0, val.length).toUpperCase() == val.toUpperCase()) {
+          b = document.createElement("div");
+          b.innerHTML = "<strong>" + arr[i].substr(0, val.length) + "</strong>";
+          b.innerHTML += arr[i].substr(val.length);
+          b.innerHTML += "<input type='hidden' value='" + arr[i] + "'>";
+          b.addEventListener("click", function(e) {
+            inp.value = this.getElementsByTagName("input")[0].value;
+            closeAllLists();
+          });
+          a.appendChild(b);
+        }
+      }
+    });
+    
+    inp.addEventListener("keydown", function(e) {
+      var x = document.getElementById(this.id + "autocomplete-list");
+      if (x) x = x.getElementsByTagName("div");
+      if (e.keyCode == 40) {
+        currentFocus++;
+        addActive(x);
+      } else if (e.keyCode == 38) { //up
+        currentFocus--;
+        addActive(x);
+      } else if (e.keyCode == 13) {
+        e.preventDefault();
+        if (currentFocus > -1) {
+          if (x) x[currentFocus].click();
+        }
+      }
+    });
+    function addActive(x) {
+      if (!x) return false;
+      removeActive(x);
+      if (currentFocus >= x.length) currentFocus = 0;
+      if (currentFocus < 0) currentFocus = (x.length - 1);
+      x[currentFocus].classList.add("autocomplete-active");
+    }
+    function removeActive(x) {
+      for (var i = 0; i < x.length; i++) {
+        x[i].classList.remove("autocomplete-active");
+      }
+    }
+
+    function closeAllLists(elmnt) {
+      var x = document.getElementsByClassName("autocomplete-items");
+      for (var i = 0; i < x.length; i++) {
+        if (elmnt != x[i] && elmnt != inp) {
+          x[i].parentNode.removeChild(x[i]);
+        }
+      }
+    }
+    
+    document.addEventListener("click", function (e) {
+      closeAllLists(e.target);
+    });
+  }
+
   function csv2json(csv) {
     var result = [];
     var headers=csv[0];
@@ -135,7 +263,7 @@
     });
   }
 
-  function drawItems(arr) {
+  function putItems2grid(arr) {
     header = arr.shift();
 
     mygrid.updateConfig({
@@ -145,21 +273,30 @@
   }
 
   function placeMarkers(arr) {
+    gAllLocations = gAllLocations.concat(arr);
+
     var sumLat = 0.0;
     var sumLng = 0.0;
-    for (var i = 0; i < arr.length; i++) {
-      console.log(arr[i]);
-      sumLat += parseFloat(arr[i].lat);
-      sumLng += parseFloat(arr[i].lng);
 
-      var marker = L.marker(new L.LatLng(parseFloat(arr[i].lat), parseFloat(arr[i].lng)), { title: arr[i].address });
-      marker.bindPopup(arr[i].address);
+    doAutoComplete(document.getElementById("homename"), arr.map(x => x.name));
+
+    for (var i = 0; i < gAllLocations.length; i++) {
+      console.log(gAllLocations[i]);
+      sumLat += parseFloat(gAllLocations[i].lat);
+      sumLng += parseFloat(gAllLocations[i].lng);
+
+      var marker = L.marker(
+        new L.LatLng(parseFloat(gAllLocations[i].lat), parseFloat(gAllLocations[i].lng)), 
+        { title: gAllLocations[i].name }
+      );
+      
+      marker.bindPopup(gAllLocations[i].name);
       markers.addLayer(marker);
     }
 
     map.addLayer(markers);
 
-    map.flyTo([sumLat/arr.length, sumLng/arr.length], 13, {
+    map.flyTo([sumLat/gAllLocations.length, sumLng/gAllLocations.length], 13, {
       animate: true,
       duration: 2
     });
@@ -169,13 +306,13 @@
     const arr = JSON.parse(data);
     
     placeMarkers(arr);
-    drawItems($.csv.toArrays(json2csv(arr)));
+    putItems2grid($.csv.toArrays(json2csv(arr)));
   }
 
   function handleCsvData(data) {
     csv = $.csv.toArrays(data);
     placeMarkers(csv2json(csv));
-    drawItems(csv);
+    putItems2grid(csv);
   }
 
   async function ReadFile(file) {
@@ -204,7 +341,7 @@
     });
   }
 
-  document.getElementById('upload-file').addEventListener('change', handleUploadedFile);
+  document.getElementById('upload-home').addEventListener('change', handleUploadedFile);
 
   var tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 18
