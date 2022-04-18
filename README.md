@@ -1,9 +1,16 @@
 # geo-data-analyzer
 
+# Key
+* price, size, location, age, type, ...
+* history price
+* neighbour
+  * gym, supermarket, station, starbucks, nuclear, volcano
+
+
 # TODO
 * Click event for both map and entry
 * Add, delete, edit
-* location suggestion
+*location suggestion
 * price prediction
 
 # Application
