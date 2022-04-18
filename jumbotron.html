@@ -278,10 +278,12 @@
     var sumLat = 0.0;
     var sumLng = 0.0;
 
-    doAutoComplete(document.getElementById("homename"), arr.map(x => x.name));
+    doAutoComplete(document.getElementById("homename"), gAllLocations.map(x => x.name));
+    doAutoComplete(document.getElementById("targetname"), gAllLocations.map(x => x.name));
 
+    markers.clearLayers();
     for (var i = 0; i < gAllLocations.length; i++) {
-      console.log(gAllLocations[i]);
+      // console.log(gAllLocations[i]);
       sumLat += parseFloat(gAllLocations[i].lat);
       sumLng += parseFloat(gAllLocations[i].lng);
 
@@ -304,15 +306,18 @@
   
   function handleJsonData(data) {
     const arr = JSON.parse(data);
-    
     placeMarkers(arr);
-    putItems2grid($.csv.toArrays(json2csv(arr)));
+
+    // TODO: need to check 
+    // putItems2grid($.csv.toArrays(json2csv(arr)));
   }
 
   function handleCsvData(data) {
     csv = $.csv.toArrays(data);
     placeMarkers(csv2json(csv));
-    putItems2grid(csv);
+
+    // TODO: need to check 
+    // putItems2grid(csv);
   }
 
   async function ReadFile(file) {
@@ -342,6 +347,7 @@
   }
 
   document.getElementById('upload-home').addEventListener('change', handleUploadedFile);
+  document.getElementById('upload-shop').addEventListener('change', handleUploadedFile);
 
   var tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 18
